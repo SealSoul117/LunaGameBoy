@@ -1,5 +1,6 @@
 #include "Cartridge.hpp"
-
+#include "Emulator.hpp"
+#include <Luna/Runtime/Log.hpp>
 static const c8 *ROM_TYPES[] = {
     "ROM ONLY",
     "MBC1",
@@ -37,6 +38,7 @@ static const c8 *ROM_TYPES[] = {
     "0x21 ???",
     "MBC7+SENSOR+RUMBLE+RAM+BATTERY",
 };
+
 const c8* get_cartridge_type_name(u8 type)
 {
     if (type <= 0x22) {
@@ -45,21 +47,24 @@ const c8* get_cartridge_type_name(u8 type)
         return "UNKNOWN";
     }
 }
+
 static const c8 *RAM_SIZE_TYPES[] = {
     "0",
     "-",
     "8 KB (1 bank)",
     "32 KB (4 banks of 8KB each)",
     "128 KB (16 banks of 8KB each)",
-    "64 KB (8 banks of 8KB each)"};
+    "64 KB (8 banks of 8KB each)"
+};
+
 const c8 *get_cartridge_ram_size_name(u8 ram_size_code)
 {
-    if (ram_size_code <= 0x05)
-    {
+    if (ram_size_code < 0x05)
         return RAM_SIZE_TYPES[ram_size_code];
-    }
-    return "UNKNOWN";
+    else
+        return "UNKNOWN";
 }
+
 const c8 *get_cartridge_lic_code_name(u8 lic_code)
 {
     switch (lic_code)
@@ -190,4 +195,19 @@ const c8 *get_cartridge_lic_code_name(u8 lic_code)
         break;
     }
     return "UNKNOWN";
+}
+
+u8 cartridge_read(Emulator *emu, u16 addr)
+{
+    if (addr <= 0x7FFF)
+    {
+        return emu->rom_data[addr];
+    }
+    log_error("LunaGB", "Unsupported cartridge read address: 0x%04X", (u32)addr);
+    return 0xFF;
+}
+
+void cartridge_write(Emulator *emu, u16 addr, u8 data)
+{
+    log_error("LunaGB", "Unsupported cartridge write address: 0x%04X", (u32)addr);
 }

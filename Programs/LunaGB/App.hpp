@@ -25,6 +25,8 @@ struct App
     //! The emulator instance.
     UniquePtr<Emulator> emulator;
 
+    u64 last_frame_ticks;
+
     RV init();
     RV update();
     ~App();

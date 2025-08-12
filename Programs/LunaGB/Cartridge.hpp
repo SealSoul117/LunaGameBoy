@@ -29,3 +29,7 @@ inline CartridgeHeader *get_cartridge_header(byte_t *rom_data)
 const c8 *get_cartridge_type_name(u8 type);
 const c8 *get_cartridge_ram_size_name(u8 ram_size_code);
 const c8 *get_cartridge_lic_code_name(u8 lic_code);
+
+struct Emulator;
+u8 cartridge_read(Emulator *emu, u16 address);
+void cartridge_write(Emulator *emu, u16 address, u8 data);

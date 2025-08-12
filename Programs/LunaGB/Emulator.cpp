@@ -23,12 +23,16 @@ RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
     c8 title[16];
     snprintf(title, 16, "%s", header->title);
     log_info("LunaGB", "Cartridge loaded.");
-    log_info("LunaGB", "Title: %s", title);
+    log_info("LunaGB", "Title: %s", header->title);
     log_info("LunaGB", "Type     : %2.2X (%s)", (u32)header->cartridge_type, get_cartridge_type_name(header->cartridge_type));
     log_info("LunaGB", "ROM Size : %u KB", (u32)(32 << header->rom_size));
     log_info("LunaGB", "RAM Size : %2.2X (%s)", (u32)header->ram_size, get_cartridge_ram_size_name(header->ram_size));
     log_info("LunaGB", "LIC Code : %2.2X (%s)", (u32)header->lic_code, get_cartridge_lic_code_name(header->lic_code));
     log_info("LunaGB", "ROM Ver. : %2.2X", (u32)header->version);
+
+    cpu.init();
+    memzero(wram, 8_kb);
+    memzero(vram, 8_kb);
     return ok;
 }
 void Emulator::close()
@@ -40,4 +44,88 @@ void Emulator::close()
         rom_data_size = 0;
         log_info("LunaGB", "Cartridge Unloaded.");
     }
+}
+void Emulator::update(f64 delta_time)
+{
+    u64 frame_cycles = (u64)((f32)(4194304.0 * delta_time) * clock_speed_scale);
+    u64 end_cycles = clock_cycles + frame_cycles;
+    while (clock_cycles < end_cycles)
+    {
+        if (paused)
+            break;
+        cpu.step(this);
+    }
+}
+void Emulator::tick(u32 mcycles)
+{
+    u64 tick_cycles = mcycles * 4; // 1 machine cycle = 4 clock cycles.
+    for (int i = 0; i < tick_cycles; i++)
+    {
+        // Advance the clock cycles.
+        clock_cycles++;
+    }
+}
+u8 Emulator::bus_read(u16 addr)
+{
+    if (addr <= 0x7FFF)
+    {
+        // Cartridge ROM.
+        return cartridge_read(this, addr);
+    }
+    if (addr <= 0x9FFF)
+    {
+        // VRAM.
+        return vram[addr - 0x8000];
+    }
+    if (addr <= 0xBFFF)
+    {
+        // Cartridge RAM.
+        return cartridge_read(this, addr);
+    }
+    if (addr <= 0xDFFF)
+    {
+        // Working RAM.
+        return wram[addr - 0xC000];
+    }
+    if (addr >= 0xFF80 && addr <= 0xFFFE)
+    {
+        return hram[addr - 0xFF80];
+    }
+    log_error("LunaGB", "Unsupported bus read address: 0x%04X", (u32)addr);
+    return 0xFF;
+}
+void Emulator::bus_write(u16 addr, u8 data)
+{
+    if (addr <= 0x7FFF)
+    {
+        // Cartridge ROM.
+        cartridge_write(this, addr, data);
+        return;
+    }
+    if (addr <= 0x9FFF)
+    {
+        // VRAM.
+        vram[addr - 0x8000] = data;
+        return;
+    }
+    if (addr <= 0xBFFF)
+    {
+        // Cartridge RAM.
+        cartridge_write(this, addr, data);
+        return;
+    }
+    if (addr <= 0xDFFF)
+    {
+        // Working RAM.
+        wram[addr - 0xC000] = data;
+        return;
+    }
+    if (addr >= 0xFF80 && addr <= 0xFFFE)
+    {
+        // High RAM.
+        hram[addr - 0xFF80] = data;
+        return;
+    }
+    log_error("LunaGB", "Unsupported bus write address: 0x%04X", (u32)addr);
+    return;
 }

@@ -4,6 +4,7 @@
 #include <Luna/Window/FileDialog.hpp>
 #include <Luna/Window/MessageBox.hpp>
 #include <Luna/Runtime/File.hpp>
+#include <Luna/Runtime/Time.hpp>
 
 RV App::init()
 {
@@ -56,7 +57,19 @@ RV App::update()
             is_exiting = true;
             return ok;
         }
-
+        // get time elapsed since last frame. and update the emulator.
+        //  准确来说，last_frame_ticks在一开始是上上一帧结束，上一帧开始的时间，我们现在处于上一帧结束，这一帧开始的时间。
+        // 另外，模拟器模拟的delta_time，其实是现实世界完成上一帧的时间间隔
+        u64 ticks = get_ticks();
+        u64 delta_ticks = ticks - last_frame_ticks;
+        last_frame_ticks = ticks;
+        f64 delta_time = (f64)delta_ticks / get_ticks_per_second();
+        delta_time = min(delta_time, 0.125);
+        if (emulator)
+        {
+            emulator->update(delta_time);
+        }
+        
         // Draw GUI.
         draw_gui();
 
@@ -127,11 +140,11 @@ void App::open_cartridge()
         if(succeeded(result) && !result.get().empty())
         {
             close_cartridge();
-            Path &path = result.get()[0];
+            auto path = result.get()[0];
             lulet(f, open_file(path.encode().c_str(), FileOpenFlag::read, FileCreationMode::open_existing));
-            lulet(rom_data, load_file_data(f));
+            lulet(loaded_data, load_file_data(f));
             UniquePtr<Emulator> emu(memnew<Emulator>());
-            luexp(emu->init(rom_data.data(), rom_data.size()));
+            luexp(emu->init(loaded_data.data(), loaded_data.size()));
             emulator = move(emu);
         }
     }
