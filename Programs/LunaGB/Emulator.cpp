@@ -33,6 +33,8 @@ RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
     cpu.init();
     memzero(wram, 8_kb);
     memzero(vram, 8_kb);
+    int_flags = 0x00;
+    int_enable_flags = 0x00;
     return ok;
 }
 void Emulator::close()

@@ -14,28 +14,88 @@ void CPU::init()
     sp = 0xFFFE;
     pc = 0x0100;
     halted = false;
+    interrupt_master_enabled = false;
+    interrupt_master_enabling_countdown = 0;
 }
 void CPU::step(Emulator *emu)
 {
     if (!halted)
     {
-        // fetch opcode.
-        u8 opcode = emu->bus_read(pc);
-        // increase counter.
-        ++pc;
-        instruction_func_t *instruction = instructions_map[opcode];
-        if (!instruction)
+        if (interrupt_master_enabled && (emu->int_flags & emu->int_enable_flags))
         {
-            log_error("LunaGB", "Instruction 0x%02X not present.", (u32)opcode);
-            emu->paused = true;
+            service_interrupt(emu);
         }
-        else
-        {
-            instruction(emu);
+        else {
+            // fetch opcode.
+            u8 opcode = emu->bus_read(pc);
+            // increase counter.
+            ++pc;
+            instruction_func_t *instruction = instructions_map[opcode];
+            if (!instruction)
+            {
+                log_error("LunaGB", "Instruction 0x%02X not present.", (u32)opcode);
+                emu->paused = true;
+            }
+            else
+            {
+                instruction(emu);
+            }
         }
     }
     else
     {
         emu->tick(1);
+        if (emu->int_flags & emu->int_enable_flags)
+        {
+            halted = false;
+        }
     }
+
+    if (interrupt_master_enabling_countdown)
+    {
+        --interrupt_master_enabling_countdown;
+        if (!interrupt_master_enabling_countdown)
+        {
+            interrupt_master_enabled = true;
+        }
+    }
+}
+inline void push_16(Emulator* emu, u16 v)
+{
+    emu->cpu.sp -= 2;
+    emu->bus_write(emu->cpu.sp + 1, (u8)((v >> 8) & 0xFF));
+    emu->bus_write(emu->cpu.sp, (u8)(v & 0xFF));
+}
+void CPU::service_interrupt(Emulator *emu)
+{
+    u8 int_flags = emu->int_flags & emu->int_enable_flags;
+    u8 service_flags = 0;
+    if (int_flags & INT_VBLANK) service_flags = INT_VBLANK;
+    else if (int_flags & INT_LCD_STAT) service_flags = INT_LCD_STAT;
+    else if (int_flags & INT_TIMER) service_flags = INT_TIMER;
+    else if (int_flags & INT_SERIAL) service_flags = INT_SERIAL;
+    else if (int_flags & INT_JOYPAD) service_flags = INT_JOYPAD;
+    emu->int_flags &= ~service_flags;
+    emu->tick(2);
+    push_16(emu, emu->cpu.pc);
+    emu->tick(2);
+    switch(int_flags)
+    {
+        case INT_VBLANK:
+            emu->cpu.pc = 0x0040;
+            break;
+        case INT_LCD_STAT:
+            emu->cpu.pc = 0x0048;
+            break;
+        case INT_TIMER:
+            emu->cpu.pc = 0x0050;
+            break;
+        case INT_SERIAL:
+            emu->cpu.pc = 0x0058;
+            break;
+        case INT_JOYPAD:
+            emu->cpu.pc = 0x0060;
+            break;
+    }
+    emu->tick(1);
 }

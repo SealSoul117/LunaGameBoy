@@ -28,6 +28,9 @@ struct CPU
     //! CPU is halted;
     bool halted;
 
+    bool interrupt_master_enabled;
+    u8 interrupt_master_enabling_countdown;
+
     u16 af() const { return (((u16)a) << 8) + (u16)f; }
     u16 bc() const { return (((u16)b) << 8) + (u16)c; }
     u16 de() const { return (((u16)d) << 8) + (u16)e; }
@@ -69,5 +72,14 @@ struct CPU
     void init();
     void step(Emulator *emu);
 
-    void enable_interrupt_master() {};
+    void enable_interrupt_master() 
+    {
+        interrupt_master_enabling_countdown = 2;
+    };
+    void disable_interrupt_master() 
+    {
+        interrupt_master_enabled = false;
+        interrupt_master_enabling_countdown = 0;
+    };
+    void service_interrupt(Emulator *emu);
 };

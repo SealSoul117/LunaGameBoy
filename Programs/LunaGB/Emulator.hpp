@@ -3,6 +3,11 @@
 #include "CPU.hpp"
 using namespace Luna;
 
+constexpr u8 INT_VBLANK = 1;
+constexpr u8 INT_LCD_STAT = 2;
+constexpr u8 INT_TIMER = 4;
+constexpr u8 INT_SERIAL = 8;
+constexpr u8 INT_JOYPAD = 16;
 struct Emulator
 {
     RV init(const void *cartrige_data, usize cartrige_data_size);
@@ -26,6 +31,10 @@ struct Emulator
     u64 clock_cycles = 0;
     //! The clock speed scale value.
     f32 clock_speed_scale = 1.0;
+    //! 0xFF0F - The interruption flags.
+    u8 int_flags;
+    //! 0xFFFF - The interruption enabling flags.
+    u8 int_enable_flags;
     void update(f64 delta_time);
     //! Advances clock and updates all hardware states (except CPU).
     //! This is called from CPU instructions.
