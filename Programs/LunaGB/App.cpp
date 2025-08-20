@@ -106,6 +106,11 @@ void App::draw_gui()
 
     draw_main_menu_bar();
 
+    if (debug_window.show)
+    {
+        debug_window.gui();
+    }
+
     // End GUI.
     ImGui::Render();
 }
@@ -115,13 +120,46 @@ void App::draw_main_menu_bar()
     {
         if (ImGui::BeginMenu("File"))
         {
-            if(ImGui::MenuItem("Open"))
+            if (ImGui::MenuItem("Open"))
             {
                 open_cartridge();
             }
-            if(ImGui::MenuItem("Close"))
+            if (ImGui::MenuItem("Open without playing"))
+            {
+                open_cartridge();
+                if (emulator)
+                {
+                    emulator->paused = true;
+                }
+            }
+            if (ImGui::MenuItem("Close"))
             {
                 close_cartridge();
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Play"))
+        {
+            if (ImGui::MenuItem("Play")) 
+            {
+                if (emulator) 
+                {
+                    emulator->paused = false;
+                }
+            }
+            if (ImGui::MenuItem("Pause"))
+            {
+                if (emulator)
+                {
+                    emulator->paused = true;
+                }
+            }
+        }
+        if (ImGui::BeginMenu("Debug"))
+        {
+            if (ImGui::MenuItem("Debug"))
+            {
+                debug_window.show = true;
             }
             ImGui::EndMenu();
         }

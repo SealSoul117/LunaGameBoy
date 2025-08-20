@@ -1,6 +1,8 @@
 #pragma once
 #include <Luna/Runtime/Result.hpp>
 #include "CPU.hpp"
+#include "Timer.hpp"
+#include "Serial.hpp"
 using namespace Luna;
 
 constexpr u8 INT_VBLANK = 1;
@@ -20,6 +22,8 @@ struct Emulator
     usize rom_data_size = 0;
 
     CPU cpu;
+    Timer timer;
+    Serial serial;
 
     byte_t vram[8_kb];
     byte_t wram[8_kb];

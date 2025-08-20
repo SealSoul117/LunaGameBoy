@@ -2,20 +2,20 @@
 #include "Cartridge.hpp"
 #include <Luna/Runtime/Log.hpp>
 
-RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
+RV Emulator::init(const void *cartridge_data, usize cartridge_data_size)
 {
     luassert(cartridge_data && cartridge_data_size);
-    rom_data = (byte_t*)memalloc(cartridge_data_size);
+    rom_data = (byte_t *)memalloc(cartridge_data_size);
     memcpy(rom_data, cartridge_data, cartridge_data_size);
     rom_data_size = cartridge_data_size;
     // Check cartridge header.
-    CartridgeHeader* header = get_cartridge_header(rom_data);
+    CartridgeHeader *header = get_cartridge_header(rom_data);
     u8 checksum = 0;
     for (u16 address = 0x0134; address <= 0x014C; ++address)
     {
         checksum = checksum - rom_data[address] - 1;
     }
-    if(checksum != header->checksum)
+    if (checksum != header->checksum)
     {
         return set_error(BasicError::bad_data(), "The cartridge checksum is dismatched. Expected: %u, computed: %u", (u32)header->checksum, (u32)checksum);
     }
@@ -35,6 +35,8 @@ RV Emulator::init(const void* cartridge_data, usize cartridge_data_size)
     memzero(vram, 8_kb);
     int_flags = 0x00;
     int_enable_flags = 0x00;
+    timer.init();
+    serial.init();
     return ok;
 }
 void Emulator::close()
@@ -65,6 +67,12 @@ void Emulator::tick(u32 mcycles)
     {
         // Advance the clock cycles.
         clock_cycles++;
+        timer.tick(this);
+        if ((clock_cycles % 512) == 0)
+        {
+            // Serial is ticked at 8192Hz.
+            serial.tick(this);
+        }
     }
 }
 u8 Emulator::bus_read(u16 addr)
@@ -92,6 +100,23 @@ u8 Emulator::bus_read(u16 addr)
     if (addr >= 0xFF80 && addr <= 0xFFFE)
     {
         return hram[addr - 0xFF80];
+    }
+    if (addr >= 0xFF01 && addr <= 0xFF02)
+    {
+        return serial.bus_read(addr);
+    }
+    if (addr >= 0xFF04 && addr <= 0xFF07)
+    {
+        return timer.bus_read(addr);
+    }
+    if (addr == 0xFF0F)
+    {
+        // Interrupt flags.
+        return int_flags | 0xE0;
+    }
+    if (addr == 0xFFFF)
+    {
+        return int_enable_flags | 0xE0;
     }
     log_error("LunaGB", "Unsupported bus read address: 0x%04X", (u32)addr);
     return 0xFF;
@@ -126,6 +151,27 @@ void Emulator::bus_write(u16 addr, u8 data)
     {
         // High RAM.
         hram[addr - 0xFF80] = data;
+        return;
+    }
+    if (addr >= 0xFF01 && addr <= 0xFF02)
+    {
+        serial.bus_write(addr, data);
+        return;
+    }
+    if (addr >= 0xFF04 && addr <= 0xFF07)
+    {
+        timer.bus_write(addr, data);
+        return;
+    }
+    if (addr == 0xFF0F)
+    {
+        // Interrupt flags.
+        int_flags = data & 0x1F;
+        return;
+    }
+    if (addr == 0xFFFF)
+    {
+        int_enable_flags = data & 0x1F;
         return;
     }
     log_error("LunaGB", "Unsupported bus write address: 0x%04X", (u32)addr);

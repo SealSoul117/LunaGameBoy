@@ -82,4 +82,5 @@ struct CPU
         interrupt_master_enabling_countdown = 0;
     };
     void service_interrupt(Emulator *emu);
+    void log(Emulator *emu);
 };

@@ -2,6 +2,7 @@
 #include "Emulator.hpp"
 #include "Instructions.hpp"
 #include <Luna/Runtime/Log.hpp>
+#include "App.hpp"
 using namespace Luna;
 
 void CPU::init()
@@ -26,6 +27,10 @@ void CPU::step(Emulator *emu)
             service_interrupt(emu);
         }
         else {
+            if (g_app->debug_window.cpu_logging)
+            {
+                log(emu);
+            }
             // fetch opcode.
             u8 opcode = emu->bus_read(pc);
             // increase counter.
@@ -98,4 +103,27 @@ void CPU::service_interrupt(Emulator *emu)
             break;
     }
     emu->tick(1);
+}
+void CPU::log(Emulator *emu)
+{
+    c8 buf[256];
+    c8 flags[16];
+    snprintf(flags, 16, "%c%c%c%c",
+             fz() ? 'Z' : '-',
+             fn() ? 'N' : '-',
+             fh() ? 'H' : '-',
+             fc() ? 'C' : '-');
+    snprintf(buf, 256, "%02X %02X %02X A: %02X F: %s BC: %04X DE: %04X HL: %04X PC: %04X SP: %04X\n",
+             // get_opcode_name(emu->bus_read(emu->cpu.pc)),
+             emu->bus_read(emu->cpu.pc),
+             emu->bus_read(emu->cpu.pc + 1),
+             emu->bus_read(emu->cpu.pc + 2),
+             (u32)emu->cpu.a,
+             flags,
+             (u32)emu->cpu.bc(),
+             (u32)emu->cpu.de(),
+             (u32)emu->cpu.hl(),
+             (u32)emu->cpu.pc,
+             (u32)emu->cpu.sp);
+    g_app->debug_window.cpu_log.append(buf);
 }
